@@ -1,24 +1,49 @@
 <h1>Votar peliculas</h1>
+
 <p><a href="{% url 'polls:ver' %}">Ver peliculas</a></p>
+
 <p><a href="{% url 'polls:votar' %}">Votar peliculas</a></p>
+
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
+
 <h2>Selecciona una película</h2>
 <form method="post">
-{% csrf_token %}
-<select name="pelicula">
-<option value="">-- Selecciona una película --</option>
-{% for pelicula in form.pelicula.field.queryset %}
-<option value="{{ pelicula.id }}">{{ pelicula.izenburua }}</option>
-{% endfor %}
-</select>
-<button type="submit">Votar</button>
+    {% csrf_token %}
+    <select name="pelicula">
+        <option value="">-- Selecciona una película --</option>
+        {% for pelicula in form.pelicula.field.queryset %}
+        <option value="{{ pelicula.id }}">{{ pelicula.izenburua }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Votar</button>
 </form>
-<p id="mensaje-votada" style="display:none">Ya has votado esta película.</p>
+
+<p id="mensaje-votada" style="display: none;">Ya has votado esta película.</p>
+
 <form method="post" action="{% url 'polls:logout' %}">
-{% csrf_token %}
-<button type="submit">Cerrar sesion</button>
+    {% csrf_token %}
+    <button type="submit">Cerrar sesion</button>
 </form>
+
 <script>
-const s=document.querySelector('select[name="pelicula"]'),m=document.getElementById('mensaje-votada');
-s.addEventListener('change',()=>{if(!s.value)return m.style.display='none';fetch(`{% url 'polls:verificar_voto' %}?pelicula_id=${s.value}`).then(r=>r.json()).then(d=>m.style.display=d.votada?'block':'none');});
+    const selectPelicula = document.querySelector('select[name="pelicula"]');
+    const mensajeVotada = document.getElementById('mensaje-votada');
+
+    selectPelicula.addEventListener('change', function() {
+        const peliculaId = this.value;
+        if (!peliculaId) {
+            mensajeVotada.style.display = 'none';
+            return;
+        }
+
+        fetch(`{% url 'polls:verificar_voto' %}?pelicula_id=${peliculaId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.votada) {
+                    mensajeVotada.style.display = 'block';
+                } else {
+                    mensajeVotada.style.display = 'none';
+                }
+            });
+    });
 </script>

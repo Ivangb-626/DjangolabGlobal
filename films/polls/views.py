@@ -10,22 +10,32 @@ from .forms import RegisterForm, VoteForm
 from .models import Filma, Votante
 
 
-def _redirect_if_authenticated(f):
-    @wraps(f)
+def _redirect_if_authenticated(view_func):
+    """Redirecciona usuarios autenticados a películas"""
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        return redirect('polls:films') if request.user.is_authenticated else f(request, *args, **kwargs)
+        if request.user.is_authenticated:
+            return redirect('polls:films')
+        return view_func(request, *args, **kwargs)
     return wrapper
 
 
-def _logout_if_authenticated(f):
-    @wraps(f)
+def _logout_if_authenticated(view_func):
+    """Cierra la sesión si el usuario está autenticado"""
+    @wraps(view_func)
     def wrapper(request, *args, **kwargs):
-        if request.user.is_authenticated: auth_logout(request)
-        return f(request, *args, **kwargs)
+        if request.user.is_authenticated:
+            auth_logout(request)
+        return view_func(request, *args, **kwargs)
     return wrapper
 
 
-def _votante(user): return Votante.objects.get_or_create(usuario=user)[0]
+def _get_or_create_votante(user):
+    return Votante.objects.get_or_create(usuario=user)[0]
+
+
+def _peliculas_con_votantes():
+    return Filma.objects.order_by('izenburua').prefetch_related('votantes__usuario')
 
 
 @_logout_if_authenticated
@@ -58,39 +68,88 @@ def films(request):
 
 @login_required(login_url='polls:login')
 def usuario(request):
-    p = Filma.objects.order_by('izenburua')
-    return render(request, 'polls/usuario.html', {
-        'peliculas': p,
-        'pelicula_seleccionada': p.prefetch_related('votantes__usuario').filter(id=request.GET.get('pelicula')).first()
-    })
+    pelicula_id = request.GET.get('pelicula')
+    peliculas = Filma.objects.order_by('izenburua')
+    pelicula_seleccionada = None
+
+    if pelicula_id:
+        try:
+            pelicula_seleccionada = peliculas.prefetch_related('votantes__usuario').get(id=pelicula_id)
+        except Filma.DoesNotExist:
+            pass
+
+    return render(
+        request,
+        'polls/usuario.html',
+        {
+            'peliculas': peliculas,
+            'pelicula_seleccionada': pelicula_seleccionada,
+        },
+    )
 
 
 @login_required(login_url='polls:login')
 def votar(request):
-    form = VoteForm(request.POST or None, queryset=Filma.objects.order_by('izenburua'))
+    votante = _get_or_create_votante(request.user)
+    votadas = votante.peliculas.values_list('id', flat=True)
+    todas_peliculas = Filma.objects.order_by('izenburua')
+
+    pelicula_votada = False
+    pelicula_seleccionada_id = None
+    form = VoteForm(request.POST or None, queryset=todas_peliculas)
+
     if request.method == 'POST' and form.is_valid():
         pelicula = form.cleaned_data.get('pelicula')
+
         if pelicula:
-            v = _votante(request.user)
-            if not v.peliculas.filter(id=pelicula.id).exists():
-                v.peliculas.add(pelicula)
+            pelicula_seleccionada_id = pelicula.id
+            # Verificar si ya fue votada
+            if pelicula.id in votadas:
+                pelicula_votada = True
+            else:
+                # Agregar voto
+                votante.peliculas.add(pelicula)
                 Filma.objects.filter(id=pelicula.id).update(bozkak=F('bozkak') + 1)
                 return redirect('polls:votar')
-    return render(request, 'polls/votar.html', {'form': form})
+
+    return render(
+        request,
+        'polls/votar.html',
+        {
+            'form': form,
+            'pelicula_votada': pelicula_votada,
+        },
+    )
 
 
 @login_required(login_url='polls:login')
 def ver(request):
     peliculas = Filma.objects.order_by('izenburua').prefetch_related('votantes__usuario')
-    return render(request, 'polls/ver.html', {'peliculas': peliculas})
+
+    return render(
+        request,
+        'polls/ver.html',
+        {
+            'peliculas': peliculas,
+        },
+    )
 
 
 @login_required(login_url='polls:login')
 def verificar_voto(request):
-    return JsonResponse({'votada': _votante(request.user).peliculas.filter(id=request.GET.get('pelicula_id')).exists()})
+    """Endpoint AJAX para verificar si el usuario votó una película."""
+    pelicula_id = request.GET.get('pelicula_id')
+    if not pelicula_id:
+        return JsonResponse({'votada': False})
+
+    votante = _get_or_create_votante(request.user)
+    votada = votante.peliculas.filter(id=pelicula_id).exists()
+
+    return JsonResponse({'votada': votada})
 
 
 def logout(request):
-    if request.method == 'POST': auth_logout(request)
+    if request.method == 'POST':
+        auth_logout(request)
     return redirect('polls:index')
 
