@@ -48,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'polls.middleware.NoCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'films.urls'
@@ -105,3 +106,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Session configuration
+# Cierra la sesión cuando se cierra el navegador
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+# Expira la sesión después de 1 hora (en segundos)
+SESSION_COOKIE_AGE = 3600
+# No guardar la sesión en caché
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Cambiar a True en producción con HTTPS
+SESSION_SAVE_EVERY_REQUEST = True
+

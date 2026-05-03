@@ -14,8 +14,9 @@ class Filma(models.Model):
         return self.izenburua
 
     def votantes_nombres(self):
-        nombres = self.votantes.order_by('usuario__username').values_list('usuario__username', flat=True)
-        return ', '.join(nombres) if nombres else '-'
+        return ', '.join(
+            self.votantes.order_by('usuario__username').values_list('usuario__username', flat=True)
+        ) or '-'
 
     votantes_nombres.short_description = 'Votantes'
 

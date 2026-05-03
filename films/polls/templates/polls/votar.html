@@ -1,48 +1,24 @@
 <h1>Votar peliculas</h1>
-
 <p><a href="{% url 'polls:ver' %}">Ver peliculas</a></p>
-
 <p><a href="{% url 'polls:votar' %}">Votar peliculas</a></p>
-
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
-
-
-<h2>Ya votadas</h2>
-{% if votadas %}
-<ul>
-    {% for pelicula in votadas %}
-    <li>{{ pelicula.izenburua }}</li>
-    {% endfor %}
-</ul>
-{% else %}
-<p>Aun no has votado ninguna pelicula.</p>
-{% endif %}
-
-<h2>Peliculas disponibles</h2>
-{% if disponibles %}
+<h2>Selecciona una película</h2>
 <form method="post">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    <ul>
-        {% for checkbox in form.peliculas %}
-        <li>
-            <label>
-                {{ checkbox.tag }}
-                {{ checkbox.choice_label }}
-            </label>
-        </li>
-        {% endfor %}
-    </ul>
-    {% if form.peliculas.errors %}
-    <p>{{ form.peliculas.errors }}</p>
-    {% endif %}
-    <button type="submit">Guardar votos</button>
+{% csrf_token %}
+<select name="pelicula">
+<option value="">-- Selecciona una película --</option>
+{% for pelicula in form.pelicula.field.queryset %}
+<option value="{{ pelicula.id }}">{{ pelicula.izenburua }}</option>
+{% endfor %}
+</select>
+<button type="submit">Votar</button>
 </form>
-{% else %}
-<p>Ya has votado todas las peliculas disponibles.</p>
-{% endif %}
-
+<p id="mensaje-votada" style="display:none">Ya has votado esta película.</p>
 <form method="post" action="{% url 'polls:logout' %}">
-    {% csrf_token %}
-    <button type="submit">Cerrar sesion</button>
+{% csrf_token %}
+<button type="submit">Cerrar sesion</button>
 </form>
+<script>
+const s=document.querySelector('select[name="pelicula"]'),m=document.getElementById('mensaje-votada');
+s.addEventListener('change',()=>{if(!s.value)return m.style.display='none';fetch(`{% url 'polls:verificar_voto' %}?pelicula_id=${s.value}`).then(r=>r.json()).then(d=>m.style.display=d.votada?'block':'none');});
+</script>

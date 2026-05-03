@@ -1,57 +1,53 @@
-
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from functools import wraps
+from django.contrib.auth import login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
-from django.db import models, transaction
+from django.contrib.auth.forms import AuthenticationForm
+from django.db.models import F
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
-from .forms import LoginForm, RegisterForm, VoteForm
+from .forms import RegisterForm, VoteForm
 from .models import Filma, Votante
 
 
-def _get_or_create_votante(user):
-    votante, _ = Votante.objects.get_or_create(usuario=user)
-    return votante
+def _redirect_if_authenticated(f):
+    @wraps(f)
+    def wrapper(request, *args, **kwargs):
+        return redirect('polls:films') if request.user.is_authenticated else f(request, *args, **kwargs)
+    return wrapper
 
 
+def _logout_if_authenticated(f):
+    @wraps(f)
+    def wrapper(request, *args, **kwargs):
+        if request.user.is_authenticated: auth_logout(request)
+        return f(request, *args, **kwargs)
+    return wrapper
+
+
+def _votante(user): return Votante.objects.get_or_create(usuario=user)[0]
+
+
+@_logout_if_authenticated
 def index(request):
     return render(request, 'polls/index.html')
 
 
+@_redirect_if_authenticated
 def register(request):
-    if request.user.is_authenticated:
+    form = RegisterForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        auth_login(request, form.save())
         return redirect('polls:films')
-
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            auth_login(request, user)
-            return redirect('polls:films')
-    else:
-        form = RegisterForm()
-
     return render(request, 'polls/register.html', {'form': form})
 
 
+@_redirect_if_authenticated
 def login(request):
-    if request.user.is_authenticated:
+    form = AuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        auth_login(request, form.get_user())
         return redirect('polls:films')
-
-    if request.method == 'POST':
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            user = authenticate(
-                request,
-                username=form.cleaned_data['username'],
-                password=form.cleaned_data['password'],
-            )
-            if user is not None:
-                auth_login(request, user)
-                return redirect('polls:films')
-            form.add_error(None, 'Usuario o contrasena incorrectos.')
-    else:
-        form = LoginForm()
-
     return render(request, 'polls/login.html', {'form': form})
 
 
@@ -62,40 +58,25 @@ def films(request):
 
 @login_required(login_url='polls:login')
 def usuario(request):
-    peliculas = Filma.objects.order_by('izenburua').prefetch_related('votantes__usuario')
-    return render(request, 'polls/usuario.html', {'peliculas': peliculas})
+    p = Filma.objects.order_by('izenburua')
+    return render(request, 'polls/usuario.html', {
+        'peliculas': p,
+        'pelicula_seleccionada': p.prefetch_related('votantes__usuario').filter(id=request.GET.get('pelicula')).first()
+    })
 
 
 @login_required(login_url='polls:login')
 def votar(request):
-    votante = _get_or_create_votante(request.user)
-    already_voted = votante.peliculas.all().order_by('izenburua')
-    available = Filma.objects.exclude(id__in=already_voted.values('id')).order_by('izenburua')
-
-    if request.method == 'POST':
-        form = VoteForm(request.POST, queryset=available)
-        if form.is_valid():
-            selected = list(form.cleaned_data['peliculas'])
-            with transaction.atomic():
-                votante = Votante.objects.select_for_update().get(pk=votante.pk)
-                current_ids = set(votante.peliculas.values_list('id', flat=True))
-                new_films = [filma for filma in selected if filma.id not in current_ids]
-                if new_films:
-                    votante.peliculas.add(*new_films)
-                    Filma.objects.filter(id__in=[filma.id for filma in new_films]).update(bozkak=models.F('bozkak') + 1)
-            return redirect('polls:votar')
-    else:
-        form = VoteForm(queryset=available)
-
-    return render(
-        request,
-        'polls/votar.html',
-        {
-            'form': form,
-            'votadas': already_voted,
-            'disponibles': available,
-        },
-    )
+    form = VoteForm(request.POST or None, queryset=Filma.objects.order_by('izenburua'))
+    if request.method == 'POST' and form.is_valid():
+        pelicula = form.cleaned_data.get('pelicula')
+        if pelicula:
+            v = _votante(request.user)
+            if not v.peliculas.filter(id=pelicula.id).exists():
+                v.peliculas.add(pelicula)
+                Filma.objects.filter(id=pelicula.id).update(bozkak=F('bozkak') + 1)
+                return redirect('polls:votar')
+    return render(request, 'polls/votar.html', {'form': form})
 
 
 @login_required(login_url='polls:login')
@@ -104,7 +85,12 @@ def ver(request):
     return render(request, 'polls/ver.html', {'peliculas': peliculas})
 
 
+@login_required(login_url='polls:login')
+def verificar_voto(request):
+    return JsonResponse({'votada': _votante(request.user).peliculas.filter(id=request.GET.get('pelicula_id')).exists()})
+
+
 def logout(request):
-    if request.method == 'POST':
-        auth_logout(request)
+    if request.method == 'POST': auth_logout(request)
     return redirect('polls:index')
+

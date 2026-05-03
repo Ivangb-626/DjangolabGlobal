@@ -6,13 +6,14 @@
 
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
 
+<h2>Todas las películas</h2>
 <table border="1" cellpadding="8" cellspacing="0">
     <thead>
         <tr>
-            <th>Titulo</th>
+            <th>Título</th>
             <th>Director</th>
-            <th>Ano</th>
-            <th>Genero</th>
+            <th>Año</th>
+            <th>Género</th>
             <th>Sinopsis</th>
             <th>Votos</th>
             <th>Votantes</th>
@@ -31,12 +32,12 @@
         </tr>
         {% empty %}
         <tr>
-            <td colspan="7">No hay peliculas guardadas.</td>
+            <td colspan="7">No hay películas guardadas.</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-<p></p>
+
 <form method="post" action="{% url 'polls:logout' %}">
     {% csrf_token %}
     <button type="submit">Cerrar sesion</button>
