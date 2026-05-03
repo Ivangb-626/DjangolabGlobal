@@ -1,4 +1,4 @@
-<h1>Zona de peliculas</h1>
+<h1>Votar peliculas</h1>
 
 <p><a href="{% url 'polls:ver' %}">Ver peliculas</a></p>
 
@@ -6,7 +6,43 @@
 
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
 
+
+<h2>Ya votadas</h2>
+{% if votadas %}
+<ul>
+    {% for pelicula in votadas %}
+    <li>{{ pelicula.izenburua }}</li>
+    {% endfor %}
+</ul>
+{% else %}
+<p>Aun no has votado ninguna pelicula.</p>
+{% endif %}
+
+<h2>Peliculas disponibles</h2>
+{% if disponibles %}
+<form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <ul>
+        {% for checkbox in form.peliculas %}
+        <li>
+            <label>
+                {{ checkbox.tag }}
+                {{ checkbox.choice_label }}
+            </label>
+        </li>
+        {% endfor %}
+    </ul>
+    {% if form.peliculas.errors %}
+    <p>{{ form.peliculas.errors }}</p>
+    {% endif %}
+    <button type="submit">Guardar votos</button>
+</form>
+{% else %}
+<p>Ya has votado todas las peliculas disponibles.</p>
+{% endif %}
+
 <form method="post" action="{% url 'polls:logout' %}">
     {% csrf_token %}
-    <button type="submit">Cerrar sesión</button>
+    <button type="submit">Cerrar sesion</button>
 </form>

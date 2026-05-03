@@ -13,6 +13,12 @@ class Filma(models.Model):
     def __str__(self):
         return self.izenburua
 
+    def votantes_nombres(self):
+        nombres = self.votantes.order_by('usuario__username').values_list('usuario__username', flat=True)
+        return ', '.join(nombres) if nombres else '-'
+
+    votantes_nombres.short_description = 'Votantes'
+
 
 class Votante(models.Model):
     usuario = models.OneToOneField(

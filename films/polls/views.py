@@ -1,9 +1,16 @@
 
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
+from django.db import models, transaction
 from django.shortcuts import redirect, render
 
-from .forms import LoginForm, RegisterForm
+from .forms import LoginForm, RegisterForm, VoteForm
+from .models import Filma, Votante
+
+
+def _get_or_create_votante(user):
+    votante, _ = Votante.objects.get_or_create(usuario=user)
+    return votante
 
 
 def index(request):
@@ -55,17 +62,46 @@ def films(request):
 
 @login_required(login_url='polls:login')
 def usuario(request):
-    return render(request, 'polls/usuario.html')
+    peliculas = Filma.objects.order_by('izenburua').prefetch_related('votantes__usuario')
+    return render(request, 'polls/usuario.html', {'peliculas': peliculas})
 
 
 @login_required(login_url='polls:login')
 def votar(request):
-    return render(request, 'polls/votar.html')
+    votante = _get_or_create_votante(request.user)
+    already_voted = votante.peliculas.all().order_by('izenburua')
+    available = Filma.objects.exclude(id__in=already_voted.values('id')).order_by('izenburua')
+
+    if request.method == 'POST':
+        form = VoteForm(request.POST, queryset=available)
+        if form.is_valid():
+            selected = list(form.cleaned_data['peliculas'])
+            with transaction.atomic():
+                votante = Votante.objects.select_for_update().get(pk=votante.pk)
+                current_ids = set(votante.peliculas.values_list('id', flat=True))
+                new_films = [filma for filma in selected if filma.id not in current_ids]
+                if new_films:
+                    votante.peliculas.add(*new_films)
+                    Filma.objects.filter(id__in=[filma.id for filma in new_films]).update(bozkak=models.F('bozkak') + 1)
+            return redirect('polls:votar')
+    else:
+        form = VoteForm(queryset=available)
+
+    return render(
+        request,
+        'polls/votar.html',
+        {
+            'form': form,
+            'votadas': already_voted,
+            'disponibles': available,
+        },
+    )
 
 
 @login_required(login_url='polls:login')
 def ver(request):
-    return render(request, 'polls/ver.html')
+    peliculas = Filma.objects.order_by('izenburua').prefetch_related('votantes__usuario')
+    return render(request, 'polls/ver.html', {'peliculas': peliculas})
 
 
 def logout(request):
