@@ -7,6 +7,10 @@
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
 
 <form method="post" action="{% url 'polls:logout' %}">
+
     {% csrf_token %}
+
     <button type="submit">Cerrar sesión</button>
+
 </form>
+

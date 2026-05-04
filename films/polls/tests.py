@@ -89,7 +89,7 @@ class VerPeliculasViewTests(TestCase):
         self.assertContains(response, 'Shaun Monson')
         self.assertContains(response, '7')
 
-    def test_ver_muestra_los_usuarios_que_han_votado(self):
+    def test_ver_no_muestra_los_usuarios_que_han_votado(self):
         usuario1 = User.objects.create_user(username='ana', password='ClaveSegura123')
         usuario2 = User.objects.create_user(username='borja', password='ClaveSegura123')
         filma = Filma.objects.create(
@@ -109,8 +109,9 @@ class VerPeliculasViewTests(TestCase):
         response = self.client.get(reverse('polls:ver'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'ana')
-        self.assertContains(response, 'borja')
+        self.assertNotContains(response, 'Votantes')
+        self.assertNotContains(response, 'ana')
+        self.assertNotContains(response, 'borja')
 
 
 class UsuarioViewTests(TestCase):

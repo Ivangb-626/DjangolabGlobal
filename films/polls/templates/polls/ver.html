@@ -6,39 +6,69 @@
 
 <p><a href="{% url 'polls:usuario' %}">Aficionados</a></p>
 
-<h2>Todas las películas</h2>
+<h2>Todas las peliculas</h2>
+
 <table border="1" cellpadding="8" cellspacing="0">
+
     <thead>
+
         <tr>
-            <th>Título</th>
+
+            <th>Titulo</th>
+
             <th>Director</th>
-            <th>Año</th>
-            <th>Género</th>
+
+            <th>Ano</th>
+
+            <th>Genero</th>
+
             <th>Sinopsis</th>
+
             <th>Votos</th>
-            <th>Votantes</th>
+
         </tr>
+
     </thead>
+
     <tbody>
+
         {% for pelicula in peliculas %}
+
         <tr>
+
             <td>{{ pelicula.izenburua }}</td>
+
             <td>{{ pelicula.zuzendaria }}</td>
+
             <td>{{ pelicula.urtea }}</td>
+
             <td>{{ pelicula.generoa }}</td>
+
             <td>{{ pelicula.sinopsia }}</td>
+
             <td>{{ pelicula.bozkak }}</td>
-            <td>{{ pelicula.votantes_nombres }}</td>
+
         </tr>
+
         {% empty %}
+
         <tr>
-            <td colspan="7">No hay películas guardadas.</td>
+
+            <td colspan="6">No hay peliculas guardadas.</td>
+
         </tr>
+
         {% endfor %}
+
     </tbody>
+
 </table>
 
+<p></p>
 <form method="post" action="{% url 'polls:logout' %}">
+
     {% csrf_token %}
+
     <button type="submit">Cerrar sesion</button>
+
 </form>
