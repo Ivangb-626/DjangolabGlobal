@@ -11,7 +11,6 @@ from .models import Filma, Votante
 
 
 def _redirect_if_authenticated(view_func):
-    """Redirecciona usuarios autenticados a películas"""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -21,7 +20,6 @@ def _redirect_if_authenticated(view_func):
 
 
 def _logout_if_authenticated(view_func):
-    """Cierra la sesión si el usuario está autenticado"""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -137,7 +135,6 @@ def ver(request):
 
 @login_required(login_url='polls:login')
 def verificar_voto(request):
-    """Endpoint AJAX para verificar si el usuario votó una película."""
     pelicula_id = request.GET.get('pelicula_id')
     if not pelicula_id:
         return JsonResponse({'votada': False})
